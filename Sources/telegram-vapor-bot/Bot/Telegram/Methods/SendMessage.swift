@@ -88,3 +88,13 @@ public extension TGBot {
         return future
     }
 }
+
+@available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+public extension TGBot {
+    @discardableResult
+    func sendMessage(params: TGSendMessageParams) async throws -> TGMessage {
+        let methodURL: URI = .init(string: getMethodURL("sendMessage"))
+        let message: TGMessage = try await tgClient.post(methodURL, params: params, as: nil)
+        return message
+    }
+}

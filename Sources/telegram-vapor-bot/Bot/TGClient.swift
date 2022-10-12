@@ -13,7 +13,7 @@ public enum TGHTTPMediaType: String, Equatable {
     case json
 }
 
-private struct TGEmptyParams: Encodable {}
+struct TGEmptyParams: Encodable {}
 
 public protocol TGClientPrtcl {
 
@@ -34,11 +34,35 @@ public protocol TGClientPrtcl {
 
     @discardableResult
     func post<Response: Codable>(_ url: URI, as mediaType: Vapor.HTTPMediaType) -> EventLoopFuture<Response>
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func get<Params: Encodable, Response: Codable>(_ url: URI, params: Params?, as mediaType: Vapor.HTTPMediaType?) async throws -> Response
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func get<Response: Codable>(_ url: URI) async throws -> Response
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func get<Response: Codable>(_ url: URI, as mediaType: Vapor.HTTPMediaType) async throws -> Response
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func post<Params: Encodable, Response: Codable>(_ url: URI, params: Params?, as mediaType: Vapor.HTTPMediaType?) async throws -> Response
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func post<Response: Codable>(_ url: URI) async throws -> Response
+
+    @available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+    @discardableResult
+    func post<Response: Codable>(_ url: URI, as mediaType: Vapor.HTTPMediaType) async throws -> Response
 }
 
 public final class DefaultTGClient: TGClientPrtcl {
     
-    private let client: Vapor.Client
+    internal let client: Vapor.Client
 
     public init(client: Vapor.Client) {
         self.client = client
@@ -172,5 +196,100 @@ public final class DefaultTGClient: TGClientPrtcl {
         """
         TGBot.log.info(logString.logMessage)
         return result
+    }
+}
+
+@available(macOS 12, iOS 15, watchOS 8, tvOS 15, *)
+public extension DefaultTGClient {
+    @discardableResult
+    public func get<Params: Encodable, Response: Codable>
+    (
+        _ url: URI,
+        params: Params? = nil,
+        as mediaType: Vapor.HTTPMediaType? = nil
+    ) async throws -> Response {
+        let clientResponse = try await client.get(url, headers: HTTPHeaders()) { clientRequest in
+            if mediaType == .formData || mediaType == nil {
+//                #warning("THIS CODE FOR FAST FIX, BECAUSE https://github.com/vapor/multipart-kit/issues/63 not accepted yet")
+                var rawMultipart: (body: NSMutableData, boundary: String)!
+                do {
+                    /// Content-Disposition: form-data; name="nested_object"
+                    ///
+                    /// { json string }
+                    rawMultipart = try (params ?? (TGEmptyParams() as! Params)).toMultiPartFormData()
+                } catch {
+                    TGBot.log.critical(error.logMessage)
+                }
+                clientRequest.headers.add(name: "Content-Type", value: "multipart/form-data; boundary=\(rawMultipart.boundary)")
+                let buffer = ByteBuffer.init(data: rawMultipart.body as Data)
+                clientRequest.body = buffer
+            } else {
+                if let currentParams: Params = params {
+                    try clientRequest.content.encode(currentParams, as: mediaType ?? .json)
+                } else {
+                    try clientRequest.content.encode(TGEmptyParams(), as: mediaType ?? .json)
+                }
+            }
+        }
+
+        let telegramContainer = try clientResponse.content.decode(TGTelegramContainer<Response>.self)
+        return try processContainer(telegramContainer)
+    }
+
+    @discardableResult
+    public func get<Response: Codable>(_ url: URI) async throws -> Response {
+        try await self.get(url, params: TGEmptyParams(), as: nil)
+    }
+
+    @discardableResult
+    public func get<Response: Codable>(_ url: URI, as mediaType: Vapor.HTTPMediaType) async throws -> Response {
+        try await self.get(url, params: TGEmptyParams(), as: mediaType)
+    }
+
+    @discardableResult
+    public func post<Params: Encodable, Response: Codable>
+    (
+        _ url: URI,
+        params: Params? = nil,
+        as mediaType: Vapor.HTTPMediaType? = nil
+    ) async throws -> Response {
+        let clientResponse = try await client.post(url, headers: HTTPHeaders()) { clientRequest in
+            if mediaType == .formData || mediaType == nil {
+//                #warning("THIS CODE FOR FAST FIX, BECAUSE https://github.com/vapor/multipart-kit/issues/63 not accepted yet")
+                var rawMultipart: (body: NSMutableData, boundary: String)!
+                do {
+                    /// Content-Disposition: form-data; name="nested_object"
+                    ///
+                    /// { json string }
+                    if let currentParams: Params = params {
+                        rawMultipart = try currentParams.toMultiPartFormData()
+                    } else {
+                        rawMultipart = try TGEmptyParams().toMultiPartFormData()
+                    }
+                } catch {
+                    TGBot.log.critical("Post request error: \(error.logMessage)")
+                }
+                clientRequest.headers.add(name: "Content-Type", value: "multipart/form-data; boundary=\(rawMultipart.boundary)")
+                let buffer = ByteBuffer.init(data: rawMultipart.body as Data)
+                clientRequest.body = buffer
+                /// Debug
+//                TGBot.log.critical("url: \(url)\n\(String(decoding: rawMultipart.body, as: UTF8.self))")
+            } else {
+                try clientRequest.content.encode(params ?? (TGEmptyParams() as! Params), as: mediaType ?? .json)
+            }
+        }
+        
+        let telegramContainer = try clientResponse.content.decode(TGTelegramContainer<Response>.self)
+        return try processContainer(telegramContainer)
+    }
+
+    @discardableResult
+    public func post<Response: Codable>(_ url: URI) async throws -> Response {
+        try await self.post(url, params: TGEmptyParams(), as: nil)
+    }
+
+    @discardableResult
+    public func post<Response: Codable>(_ url: URI, as mediaType: Vapor.HTTPMediaType) async throws -> Response {
+        try await self.post(url, params: TGEmptyParams(), as: mediaType)
     }
 }
