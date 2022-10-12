@@ -40,6 +40,9 @@ public protocol TGBotPrtcl {
     func sendMessage(params: TGSendMessageParams) throws -> EventLoopFuture<TGMessage>
 
     @discardableResult
+    func sendMessage(params: TGSendMessageParams) async throws -> TGMessage
+
+    @discardableResult
     func forwardMessage(params: TGForwardMessageParams) throws -> EventLoopFuture<TGMessage>
 
     @discardableResult
