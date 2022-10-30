@@ -33,7 +33,7 @@ open class TGDefaultDispatcher: TGDispatcherPrtcl {
                                                     attributes: .concurrent)
 
     public var handlersGroup: [[TGHandlerPrtcl]] = []
-    private var beforeAllCallback: ([TGUpdate], @escaping ([TGUpdate]) throws -> Void) throws -> Void = { updates, callback in
+    private var beforeAllCallback: ([TGUpdate], @escaping ([TGUpdate]) throws -> Void) async throws -> Void = { updates, callback in
         try callback(updates)
     }
     private var handlersId: Int = 0
@@ -100,13 +100,9 @@ open class TGDefaultDispatcher: TGDispatcherPrtcl {
     }
 
     public func process(_ updates: [TGUpdate]) throws {
-        processQueue.async { [weak self] in
-            guard let self = self else {
-                TGBot.log.error("TGDispatcher was deinited")
-                return
-            }
+        Task.detached {
             do {
-                try self.beforeAllCallback(updates) { updates in
+                try await self.beforeAllCallback(updates) { updates in
                     for update in updates {
                         try self.processByHandler(update)
                     }
@@ -118,17 +114,16 @@ open class TGDefaultDispatcher: TGDispatcherPrtcl {
     }
 
     func processByHandler(_ update: TGUpdate) throws {
-        processQueue.async { [weak self] in
-            guard let self = self, let bot = self.bot, self.handlersGroup.count > 0 else {
-                if self == nil { TGBot.log.error("TGDispatcher was deinited"); return }
-                if self?.bot == nil { TGBot.log.error("TGBot not set to dispatcher"); return }
+        Task.detached {
+            guard let bot = self.bot, self.handlersGroup.count > 0 else {
+                if self.bot == nil { TGBot.log.error("TGBot not set to dispatcher"); return }
                 return
             }
             for i in 1...self.handlersGroup.count {
                 for handler in self.handlersGroup[self.handlersGroup.count - i] {
                     if handler.check(update: update) {
-                        self.handlerQueue.async {
-                            handler.handle(update: update, bot: bot)
+                        Task.detached {
+                            await handler.handle(update: update, bot: bot)
                         }
                     }
                 }
