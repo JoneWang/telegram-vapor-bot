@@ -27,7 +27,7 @@ public class TGCallbackQueryHandler: TGHandlerPrtcl {
         self.name = name
     }
 
-    public func check(update: TGUpdate) -> Bool {
+    public func check(update: TGUpdate) async -> Bool {
         guard let callbackQuery = update.callbackQuery else { return false }
         if let data = callbackQuery.data,
            !data.matchRegexp(pattern: pattern) {

@@ -45,7 +45,7 @@ public class TGMessageHandler: TGHandlerPrtcl {
         self.name = name
     }
     
-    public func check(update: TGUpdate) -> Bool {
+    public func check(update: TGUpdate) async -> Bool {
         if options.contains(.channelPostUpdates) {
             if update.channelPost != nil {
                 return true

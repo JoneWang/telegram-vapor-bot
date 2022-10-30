@@ -53,7 +53,7 @@ public class TGCommandHandler: TGHandlerPrtcl {
         self.callback = callback
     }
     
-    public func check(update: TGUpdate) -> Bool {
+    public func check(update: TGUpdate) async -> Bool {
         if options.contains(.editedUpdates),
            update.editedMessage != nil ||
             update.editedChannelPost != nil {

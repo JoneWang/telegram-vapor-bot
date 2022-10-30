@@ -18,7 +18,7 @@ public class TGLoggerHandler: TGHandlerPrtcl {
         self.logLevel = level
     }
     
-    public func check(update: TGUpdate) -> Bool {
+    public func check(update: TGUpdate) async -> Bool {
         return true
     }
     

@@ -45,7 +45,7 @@ public class TGRegexpHandler: TGHandlerPrtcl {
         )
     }
     
-    public func check(update: TGUpdate) -> Bool {
+    public func check(update: TGUpdate) async -> Bool {
         guard let text = update.message?.text else { return false }
         return text.regexp(regexp.pattern, regexp.options).keys.count > 0
     }
