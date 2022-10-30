@@ -14,7 +14,7 @@ public protocol TGHandlerPrtcl {
     var id: Int { get set }
     var name: String { get }
 
-    func check(update: TGUpdate) -> Bool
+    func check(update: TGUpdate) async -> Bool
     func handle(update: TGUpdate, bot: TGBotPrtcl) async
 }
 

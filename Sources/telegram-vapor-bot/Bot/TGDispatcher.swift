@@ -121,8 +121,8 @@ open class TGDefaultDispatcher: TGDispatcherPrtcl {
             }
             for i in 1...self.handlersGroup.count {
                 for handler in self.handlersGroup[self.handlersGroup.count - i] {
-                    if handler.check(update: update) {
-                        Task.detached {
+                    Task.detached {
+                        if await handler.check(update: update) {
                             await handler.handle(update: update, bot: bot)
                         }
                     }
